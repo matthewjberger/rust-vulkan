@@ -1,0 +1,9 @@
+[package]
+name = "vulkan-test"
+version = "0.1.0"
+authors = ["Matthew J. Berger <matthewberger@nevada.unr.edu>"]
+edition = "2018"
+
+[dependencies]
+ash = "0.27.1"
+glfw = { version = "0.26.1", features = [ "vulkan" ] }
