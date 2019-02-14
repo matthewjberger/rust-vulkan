@@ -2,7 +2,10 @@ extern crate ash;
 extern crate glfw;
 
 use ash::{
-    extensions::khr::{Surface, Win32Surface},
+    extensions::{
+        ext::DebugUtils,
+        khr::{Surface, Win32Surface},
+    },
     version::*,
     *,
 };
@@ -45,7 +48,11 @@ fn main() {
         .map(|raw_name| raw_name.as_ptr())
         .collect();
 
-    let extension_names = vec![Surface::name().as_ptr(), Win32Surface::name().as_ptr()];
+    let extension_names = vec![
+        Surface::name().as_ptr(),
+        Win32Surface::name().as_ptr(),
+        DebugUtils::name().as_ptr(),
+    ];
 
     let create_info = vk::InstanceCreateInfo::builder()
         .application_info(&app_info)
