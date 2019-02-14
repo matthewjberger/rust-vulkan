@@ -9,6 +9,7 @@ use ash::{
     version::*,
     *,
 };
+use core::ffi::c_void;
 use std::ffi::CString;
 
 use glfw::Context;
@@ -65,8 +66,31 @@ fn main() {
             .create_instance(&create_info, None)
             .expect("Instance creation error");
 
-        let extension_properties = dbg!(entry.enumerate_instance_extension_properties());
+        let _extension_properties = dbg!(entry.enumerate_instance_extension_properties());
 
+        let debug_messenger = {
+            let ext = DebugUtils::new(&entry, &instance);
+            let info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
+                .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::all())
+                .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
+                .pfn_user_callback(Some(vulkan_debug_callback));
+
+            let handle = ext.create_debug_utils_messenger(&info, None).unwrap();
+            (ext, handle)
+        };
+
+        debug_messenger
+            .0
+            .destroy_debug_utils_messenger(debug_messenger.1, None);
         instance.destroy_instance(None);
     }
+}
+
+unsafe extern "system" fn vulkan_debug_callback(
+    _: vk::DebugUtilsMessageSeverityFlagsEXT,
+    _: vk::DebugUtilsMessageTypeFlagsEXT,
+    _: *const vk::DebugUtilsMessengerCallbackDataEXT,
+    _: *mut c_void,
+) -> vk::Bool32 {
+    vk::FALSE
 }
