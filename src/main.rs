@@ -1,9 +1,11 @@
 extern crate ash;
 extern crate glfw;
 
-use ash::extensions::khr::{Surface, Win32Surface};
-use ash::*;
-// use ash::util::*;
+use ash::{
+    extensions::khr::{Surface, Win32Surface},
+    version::*,
+    *,
+};
 use std::ffi::CString;
 
 use glfw::Context;
@@ -11,7 +13,6 @@ use glfw::Context;
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    // glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
     glfw.window_hint(glfw::WindowHint::Resizable(false));
     glfw.window_hint(glfw::WindowHint::Visible(true));
 
@@ -22,10 +23,12 @@ fn main() {
     window.make_current();
 
     assert!(glfw.vulkan_supported());
+
     let required_extensions = glfw.get_required_instance_extensions().unwrap_or(vec![]);
+    println!("Vulkan required extensions: {:?}", required_extensions);
+
     // VK_KHR_surface will always be available if the previous operations were successful
     assert!(required_extensions.contains(&"VK_KHR_surface".to_string()));
-    println!("Vulkan required extensions: {:?}", required_extensions);
 
     let app_name = CString::new("Hello Triangle").unwrap();
     let engine_name = CString::new("No engine").unwrap();
@@ -36,17 +39,21 @@ fn main() {
         .engine_version(0)
         .api_version(vk_make_version!(1, 0, 0));
 
-    let layer_names = [CString::new("VK_LAYER_LUNARG_standard_validation").unwrap()];
-    let layer_names_raw: Vec<*const i8> = layer_names
-        .iter()
-        .map(|raw_name| raw_name.as_ptr())
-        .collect();
+    let extension_names = vec![Surface::name().as_ptr(), Win32Surface::name().as_ptr()];
 
     let create_info = vk::InstanceCreateInfo::builder()
         .application_info(&app_info)
-        .enabled_layer_names(&layer_names_raw)
-        .enabled_extension_names(&vec![
-            Surface::name().as_ptr(),
-            Win32Surface::name().as_ptr(),
-        ]);
+        .enabled_extension_names(&extension_names);
+
+    unsafe {
+        let entry = Entry::new().unwrap();
+        let instance = entry
+            .create_instance(&create_info, None)
+            .expect("Instance creation error");
+
+        let extension_properties = entry.enumerate_instance_extension_properties();
+        println!("{:?}", extension_properties);
+
+        instance.destroy_instance(None);
+    }
 }
