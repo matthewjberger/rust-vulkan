@@ -24,7 +24,7 @@ fn main() {
 
     assert!(glfw.vulkan_supported());
 
-    let required_extensions = glfw.get_required_instance_extensions().unwrap_or(vec![]);
+    let required_extensions = dbg!(glfw.get_required_instance_extensions()).unwrap_or(vec![]);
     println!("Vulkan required extensions: {:?}", required_extensions);
 
     // VK_KHR_surface will always be available if the previous operations were successful
@@ -39,10 +39,17 @@ fn main() {
         .engine_version(0)
         .api_version(vk_make_version!(1, 0, 0));
 
+    let layer_names = [CString::new("VK_LAYER_LUNARG_standard_validation").unwrap()];
+    let layer_names_raw: Vec<*const i8> = layer_names
+        .iter()
+        .map(|raw_name| raw_name.as_ptr())
+        .collect();
+
     let extension_names = vec![Surface::name().as_ptr(), Win32Surface::name().as_ptr()];
 
     let create_info = vk::InstanceCreateInfo::builder()
         .application_info(&app_info)
+        .enabled_layer_names(&layer_names_raw)
         .enabled_extension_names(&extension_names);
 
     unsafe {
@@ -51,8 +58,7 @@ fn main() {
             .create_instance(&create_info, None)
             .expect("Instance creation error");
 
-        let extension_properties = entry.enumerate_instance_extension_properties();
-        println!("{:?}", extension_properties);
+        let extension_properties = dbg!(entry.enumerate_instance_extension_properties());
 
         instance.destroy_instance(None);
     }
