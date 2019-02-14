@@ -79,6 +79,18 @@ fn main() {
             (ext, handle)
         };
 
+        let devices = instance
+            .enumerate_physical_devices()
+            .expect("Physical device error");
+
+        if devices.len() == 0 {
+            println!("No physical devices are available.");
+        } else {
+            let physical_device = devices.iter().map(|physical_device| {
+                instance.get_physical_device_queue_family_properties(*physical_device)
+            });
+        }
+
         debug_messenger
             .0
             .destroy_debug_utils_messenger(debug_messenger.1, None);
