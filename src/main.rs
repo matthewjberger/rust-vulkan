@@ -1,5 +1,6 @@
 extern crate ash;
 extern crate glfw;
+extern crate winapi;
 
 use ash::{
     extensions::{
@@ -7,12 +8,16 @@ use ash::{
         khr::{Surface, Win32Surface},
     },
     version::*,
+    vk::DeviceQueueCreateInfoBuilder,
     *,
 };
 use core::ffi::c_void;
-use std::ffi::CString;
+use std::{ffi::CString, ptr};
 
 use glfw::Context;
+
+use winapi::shared::windef::HWND;
+use winapi::um::libloaderapi::GetModuleHandleW;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -79,18 +84,62 @@ fn main() {
             (ext, handle)
         };
 
+        let window_create_info = vk::Win32SurfaceCreateInfoKHR {
+            s_type: vk::StructureType::WIN32_SURFACE_CREATE_INFO_KHR,
+            p_next: ptr::null(),
+            flags: Default::default(),
+            hinstance: GetModuleHandleW(ptr::null()) as *const c_void,
+            hwnd: window.get_win32_window() as HWND as *const c_void,
+        };
+        let win32_surface_loader = Win32Surface::new(&entry, &instance);
+        let surface = win32_surface_loader
+            .create_win32_surface(&window_create_info, None)
+            .unwrap();
+        let surface_loader = Surface::new(&entry, &instance);
+
         let devices = instance
             .enumerate_physical_devices()
             .expect("Physical device error");
 
         if devices.len() == 0 {
             println!("No physical devices are available.");
-        } else {
-            let physical_device = devices.iter().map(|physical_device| {
-                instance.get_physical_device_queue_family_properties(*physical_device)
-            });
+            instance.destroy_instance(None);
+            return;
         }
 
+        let (physical_device, queue_family_index) = devices
+            .iter()
+            .map(|physical_device| {
+                instance
+                    .get_physical_device_queue_family_properties(*physical_device)
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, ref info)| {
+                        let supports_graphic_and_surface =
+                            info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+                                && surface_loader.get_physical_device_surface_support(
+                                    *physical_device,
+                                    index as u32,
+                                    surface,
+                                );
+                        match supports_graphic_and_surface {
+                            true => Some((*physical_device, index as u32)),
+                            _ => None,
+                        }
+                    })
+                    .nth(0)
+            })
+            .filter_map(|v| v)
+            .nth(0)
+            .expect("Couldn't find a suitable device.");
+
+        let priorities = [1.0];
+        let queue_create_info = [vk::DeviceQueueCreateInfo::builder()
+            .queue_family_index(queue_family_index)
+            .queue_priorities(&priorities)
+            .build()];
+
+        surface_loader.destroy_surface(surface, None);
         debug_messenger
             .0
             .destroy_debug_utils_messenger(debug_messenger.1, None);
